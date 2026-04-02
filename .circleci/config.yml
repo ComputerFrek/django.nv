@@ -1,57 +1,52 @@
+# This config was automatically generated from your source code
+# Stacks detected: cicd:github-actions:.github/workflows,cicd:gitlab-workflows:.,deps:node:.,deps:python:.,file:manage.py:.
+version: 2.1
+orbs:
+  node: circleci/node@5
+  python: circleci/python@2
 jobs:
-  build:
-    docker:
-      - image: python:3.6                   # similar to "image" in GitLab
+  test-node:
+    # Install node dependencies and run tests
+    executor: node/default
     steps:
       - checkout
-      - run: |                              # similar to "script" in GitLab
-          pip install -r requirements.txt
-          python manage.py check
-
-  test:
-    docker:
-      - image: python:3.6
-    steps:
-      - checkout
-      - run: |
-          pip install -r requirements.txt
-          python manage.py test taskManager
-
-  release:
-    machine: true                                        # What is this for?
-    steps:
-      - checkout
-
-      - run: |
-          docker build -t $DOCKER_USERNAME/django.nv .   # Build the application into Docker image
-          docker push $DOCKER_USERNAME/django.nv         # Push the image into registry
-
-  integration:
-    docker:
-      - image: python:3.6
-    steps:
-      - checkout
+      - node/install-packages:
+          cache-path: ~/project/node_modules
+          override-ci-command: npm install
       - run:
-          command: |
-            echo "This is an integration step"
-            exit 1
-          when: on_fail                   # Even if the job fails, continue to the next stages
-
-  prod:
+          name: Run tests
+          command: npm test --passWithNoTests
+  test-python:
+    # Install dependencies and run tests
     docker:
-      - image: python:3.6
+      - image: cimg/python:3.8-node
     steps:
       - checkout
-      - run: echo "This is a 'deploy' step."
-
+      - python/install-packages
+      - run:
+          name: Run tests
+          command: python manage.py test
+  deploy:
+    # This is an example deploy job, not actually used by the workflow
+    docker:
+      - image: cimg/base:stable
+    steps:
+      # Replace this with steps to deploy to users
+      - run:
+          name: deploy
+          command: '#e.g. ./deploy.sh'
+      - run:
+          name: found github actions config
+          command: ':'
+      - run:
+          name: found gitlab workflows config
+          command: ':'
 workflows:
-  version: 2
-  django:
+  build-and-test:
     jobs:
-      - build
-      - test
-      - integration
-      - prod:
-          type: approval
-          requires:
-            - integration
+      - test-node
+      - test-python
+    # - deploy:
+    #     requires:
+    #       - test-node
+    #       - test-python
